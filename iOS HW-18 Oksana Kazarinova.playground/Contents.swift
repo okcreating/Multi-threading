@@ -32,21 +32,30 @@ public struct Chip {
 
 class GenerationThread: Thread {
     func generateInstances() {
-        var counter = 0
-        var timer = Timer(timeInterval: 2, repeats: true) { timer in
+        // var counter = 0
+
+        for counter in 1...10 {
             mutex.lock()
-            storage.append(Chip.make())
-            mutex.unlock()
-            counter += 1
-            print("Instance \(counter) added to the storage.")
+            var timer = Timer(timeInterval: 1, repeats: false) { timer in
+
+                storage.append(Chip.make())
+                print("Instance \(counter) added to the storage.")
+                mutex.unlock()
+                //counter += 1
+                //if counter == 10 {
+                //    timer.invalidate()
+
+            }
+
+            RunLoop.current.add(timer, forMode: .common)
+           RunLoop.current.run(until: Date.init(timeIntervalSinceNow: 2))
         }
-        RunLoop.current.add(timer, forMode: .common)
-        RunLoop.current.run(until: Date.init(timeIntervalSinceNow: 20))
     }
 }
 
 class WorkingThread: Thread {
     func workWithChip() {
+
         while (!isStorageEmpty) {
             mutex.lock()
             print(storage)
@@ -55,7 +64,6 @@ class WorkingThread: Thread {
             print("Chip is soldered.")
             mutex.unlock()
         }
-        //wait()
     }
 }
 
