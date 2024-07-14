@@ -3,7 +3,7 @@ import PlaygroundSupport
 PlaygroundPage.current.needsIndefiniteExecution = true
 
 var storage = [Chip]()
-var mutex = NSCondition()
+var mutex = NSLock()
 var isStorageEmpty: Bool {
     storage.isEmpty
 }
@@ -32,37 +32,38 @@ public struct Chip {
 
 class GenerationThread: Thread {
     func generateInstances() {
-        // var counter = 0
-
-        for counter in 1...10 {
-            mutex.lock()
-            var timer = Timer(timeInterval: 1, repeats: false) { timer in
-
+        var counter = 0
+            let timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { timer in
+                mutex.lock()
                 storage.append(Chip.make())
+                counter += 1
                 print("Instance \(counter) added to the storage.")
                 mutex.unlock()
-                //counter += 1
-                //if counter == 10 {
-                //    timer.invalidate()
 
+                if counter == 10 {
+                   timer.invalidate()
             }
-
-            RunLoop.current.add(timer, forMode: .common)
-           RunLoop.current.run(until: Date.init(timeIntervalSinceNow: 2))
+        }
+        RunLoop.main.add(timer, forMode: .default)
+        RunLoop.main.run(until: Date.init(timeIntervalSinceNow: 0))
         }
     }
-}
 
 class WorkingThread: Thread {
     func workWithChip() {
-
-        while (!isStorageEmpty) {
-            mutex.lock()
-            print(storage)
-            var instance = storage.removeLast()
-            instance.soldering()
-            print("Chip is soldered.")
-            mutex.unlock()
+        var counter = 0
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            while (!isStorageEmpty) {
+                mutex.lock()
+                print(storage)
+                var instance = storage.removeLast()
+                instance.soldering()
+                counter += 1
+                print("Chip \(counter) is soldered.")
+                mutex.unlock()
+            }
+            RunLoop.current.add(timer, forMode: .default)
+            RunLoop.current.run(until: Date.init(timeIntervalSinceNow: 0))
         }
     }
 }
