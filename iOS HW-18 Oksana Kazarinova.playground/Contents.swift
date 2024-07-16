@@ -63,8 +63,12 @@ class GenerationThread: Thread {
     override func main() {
         timer = Timer.scheduledTimer(timeInterval: 2.0, target: self, selector: #selector(generateInstances), userInfo: nil, repeats: true)
 
-        RunLoop.current.add(timer, forMode: .default)
+        RunLoop.current.add(timer, forMode: .common)
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 20))
+        do {
+            storage.mutex.signal()
+            storage.mutex.unlock()
+        }
     }
 
     @objc
@@ -90,12 +94,8 @@ class WorkingThread: Thread {
                             counter += 1
                             print("Chip \(counter) is soldered")
                         }
-        while storage.isStorageEmpty || storage.isThreadAvailable
-//        while !storage.isStorageEmpty {
-//            storage.removeElement().soldering()
-//            counter += 1
-//            print("Chip \(counter) is soldered")
-//        }
+        while storage.isStorageEmpty
+                || storage.isThreadAvailable
     }
 }
 
