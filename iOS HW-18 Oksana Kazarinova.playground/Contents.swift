@@ -2,37 +2,17 @@ import Foundation
 import PlaygroundSupport
 PlaygroundPage.current.needsIndefiniteExecution = true
 
-public struct Chip {
-    public enum ChipType: UInt32 {
-        case small = 1
-        case medium
-        case big
-    }
+// MARK: LIFO storage
 
-    public let chipType: ChipType
-
-    public static func make() -> Chip {
-        guard let chipType = Chip.ChipType(rawValue: UInt32(arc4random_uniform(3) + 1)) else {
-            fatalError("Incorrect random value")
-        }
-        return Chip(chipType: chipType)
-    }
-
-    public func soldering() {
-        let solderingTime = chipType.rawValue
-        sleep(UInt32(solderingTime))
-    }
-}
-
-class ThreadSafeWorkout {
-    private var storage = [Chip]()
+class ThreadSafeWorkout<T> {
+    private var storage = [T]()
     var mutex = NSCondition()
     var isThreadAvailable = false
     var isStorageEmpty: Bool {
         storage.isEmpty
     }
 
-    func addElement(element: Chip) {
+    func addElement(element: T) {
         mutex.lock()
         isThreadAvailable = true
         storage.append(element)
@@ -40,23 +20,27 @@ class ThreadSafeWorkout {
         mutex.unlock()
     }
 
-    func removeElement() -> Chip {
+    func removeElement() -> T {
         mutex.lock()
+        if isStorageEmpty {
+            isThreadAvailable = false
+        }
         while (!isThreadAvailable) {
             mutex.wait()
         }
-        isThreadAvailable = false
         mutex.unlock()
         return storage.removeLast()
     }
 }
 
+// MARK: Threads
+
 class GenerationThread: Thread {
-    private var storage: ThreadSafeWorkout
+    private var storage: ThreadSafeWorkout<Chip>
     private var timer = Timer()
     var counter = 0
 
-    init(storage: ThreadSafeWorkout) {
+    init(storage: ThreadSafeWorkout<Chip>) {
         self.storage = storage
     }
 
@@ -65,10 +49,6 @@ class GenerationThread: Thread {
 
         RunLoop.current.add(timer, forMode: .common)
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 20))
-        do {
-            storage.mutex.signal()
-            storage.mutex.unlock()
-        }
     }
 
     @objc
@@ -80,10 +60,10 @@ class GenerationThread: Thread {
     }
 
 class WorkingThread: Thread {
-    private let storage: ThreadSafeWorkout
+    private let storage: ThreadSafeWorkout<Chip>
     var counter = 0
 
-    init(storage: ThreadSafeWorkout) {
+    init(storage: ThreadSafeWorkout<Chip>) {
         self.storage = storage
     }
 
@@ -94,12 +74,14 @@ class WorkingThread: Thread {
                             counter += 1
                             print("Chip \(counter) is soldered")
                         }
-        while storage.isStorageEmpty
+        while !storage.isStorageEmpty
                 || storage.isThreadAvailable
     }
 }
 
-let storage = ThreadSafeWorkout()
+// MARK: Launch
+
+let storage = ThreadSafeWorkout<Chip>()
 var generationQueue = GenerationThread(storage: storage)
 var workingQueue = WorkingThread(storage: storage)
 
